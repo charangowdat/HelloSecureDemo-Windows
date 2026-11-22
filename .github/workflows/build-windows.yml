@@ -1,0 +1,38 @@
+name: Build HelloSecure for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish self-contained Windows app
+        shell: pwsh
+        run: dotnet publish ./HelloSecureDemo/HelloSecureDemo.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./package/publish
+      - name: Assemble installable package
+        shell: pwsh
+        run: |
+          Copy-Item ./README.md ./package/README.md
+          Copy-Item ./install.ps1 ./package/install.ps1
+          Copy-Item ./uninstall.ps1 ./package/uninstall.ps1
+          @'
+          # HelloSecure Demo - Windows x64
+          Extract this ZIP. Run install.ps1 from PowerShell to install the app and create a Start Menu shortcut.
+          To uninstall, run uninstall.ps1. The app is self-contained and does not require .NET to be installed.
+          '@ | Set-Content ./package/INSTALL.txt
+          Compress-Archive -Path ./package/* -DestinationPath ./HelloSecureDemo-Windows-x64.zip -Force
+      - name: Upload ready-to-install ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloSecureDemo-Windows-x64
+          path: HelloSecureDemo-Windows-x64.zip
+          if-no-files-found: error
